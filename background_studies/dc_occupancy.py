@@ -177,13 +177,14 @@ for bx_batch_index in range(0, number_of_iteration_on_bx_batches): # first loop 
                         number_of_cell_with_multiple_hits += 1
                     dict_cellID_nHits[cellID_unique_identifier] += 1
                 # deal with the number of cell fired per particle #FIXME
-                if str(particle.getObjectID()) not in dict_particle_n_fired_cell.keys(): # the particle was not seen yet
-                    dict_particle_n_fired_cell[str(particle.getObjectID())] = 1
-                    dict_particle_fired_cell_id[str(particle.getObjectID())] = [cellID_unique_identifier]
+                particle_object_id = str(particle.getObjectID())
+                if particle_object_id not in dict_particle_n_fired_cell.keys(): # the particle was not seen yet
+                    dict_particle_n_fired_cell[particle_object_id] = 1
+                    dict_particle_fired_cell_id[particle_object_id] = [cellID_unique_identifier]
                 else: # the particle already fired cells
-                    if not cellID_unique_identifier in dict_particle_fired_cell_id[str(particle.getObjectID())]: # this cell was not yet fired by this particle
-                        dict_particle_n_fired_cell[str(particle.getObjectID())] += 1
-                        dict_particle_fired_cell_id[str(particle.getObjectID())].append(cellID_unique_identifier)
+                    if not cellID_unique_identifier in dict_particle_fired_cell_id[particle_object_id]: # this cell was not yet fired by this particle
+                        dict_particle_n_fired_cell[particle_object_id] += 1
+                        dict_particle_fired_cell_id[particle_object_id].append(cellID_unique_identifier)
                 # Where do the particles hit the DC?
                 DC_simhit_position_rz.Fill(abs(dc_hit.getPosition().z), sqrt(dc_hit.getPosition().x ** 2 + dc_hit.getPosition().y ** 2))
                 # Map of the fired cells energies
