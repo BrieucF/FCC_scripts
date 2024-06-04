@@ -34,7 +34,7 @@ for i in range(1, 101):
     input_filename = "/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_Apr2024/pairs_%d.pairs"%i
     executable_path = executable_path_template.replace("FILENAME", os.path.splitext(os.path.basename(input_filename))[0])
     output_filename = os.path.join(storage_path, "IDEA_01_v03_%s.root"%os.path.splitext(os.path.basename(input_filename))[0])
-    command=f"ddsim --compactFile $K4GEO/FCCee/IDEA/compact/IDEA_o1_v03/IDEA_o1_v03.xml --inputFiles {input_filename} --outputFile {output_filename} -N -1 --crossingAngleBoost 0.015"
+    command=f"ddsim --steeringFile /afs/cern.ch/user/b/brfranco/work/public/background_studies/FCC_scripts/background_studies/idea_steer.py --compactFile $K4GEO/FCCee/IDEA/compact/IDEA_o1_v03/IDEA_o1_v03.xml --inputFiles {input_filename} --outputFile {output_filename} -N -1 --crossingAngleBoost 0.015"
     with open(executable_path, "w") as f:
         f.write(executable_header)
         f.write(command)
