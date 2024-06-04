@@ -182,7 +182,7 @@ SIM.filter.calo = "edep0"
 SIM.filter.filters = {'geantino': {'name': 'GeantinoRejectFilter/GeantinoRejector', 'parameter': {}}, 'edep1kev': {'name': 'EnergyDepositMinimumCut', 'parameter': {'Cut': 0.001}}, 'edep0': {'name': 'EnergyDepositMinimumCut/Cut0', 'parameter': {'Cut': 0.0}}}
 
 ##  a map between patterns and filter objects, using patterns to attach filters to sensitive detector 
-SIM.filter.mapDetFilter = {"DCH_v2":"edep0"}
+SIM.filter.mapDetFilter["DCH_v2"] = "edep0"
 
 ##  default filter for tracking sensitive detectors; this is applied if no other filter is used for a tracker
 SIM.filter.tracker = "edep1kev"

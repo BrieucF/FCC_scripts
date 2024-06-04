@@ -18,8 +18,8 @@ ROOT.gStyle.SetTextSize(22)
 #bkg_file_directory =  "/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_Apr2024/sim_boost_bfield_k4geo_version/"
 bkg_file_directory =  "/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_Apr2024/sim_boost_bfield_k4geo_version_Geant4TrackerAction_edep0/"
 file_name_template = "IDEA_01_v03_pairs_XX.root"
-plot_folder = "Geant4TrackerAction_edep0_stepLength1m_800_ns"
-number_of_iteration_on_bx_batches = 1
+plot_folder = "Geant4TrackerAction_edep0_stepLength1m_800_ns_twice"
+number_of_iteration_on_bx_batches = 2
 number_of_bx = 40
 bunch_spacing = 20 # ns
 if not os.path.isdir(plot_folder):
@@ -102,10 +102,16 @@ n_cell_fired_of_particles_hitting_dch =  ROOT.TH1F(f"n_cell_fired_of_particles_h
 n_cell_fired_of_particles_hitting_dch.SetTitle(f"Number of cell fired by particles hitting the DCH")
 n_cell_fired_of_particles_hitting_dch.GetXaxis().SetTitle("Number of cell fired by the particle")
 n_cell_fired_of_particles_hitting_dch.GetYaxis().SetTitle("Number of entries")
+# how many cells are fired by a bkg particle in log scale?
+n_cell_fired_of_particles_hitting_dch_log =  ROOT.TH1F(f"n_cell_fired_of_particles_hitting_dch_log", f"n_cell_fired_of_particles_hitting_dch_log", 50, 0, 112)
+n_cell_fired_of_particles_hitting_dch_log.SetTitle(f"Number of cell fired by particles hitting the DCH")
+n_cell_fired_of_particles_hitting_dch_log.GetXaxis().SetTitle("Number of cell fired by the particle")
+n_cell_fired_of_particles_hitting_dch_log.GetYaxis().SetTitle("Number of entries")
 
-total_number_of_particles = 0
 total_number_of_hit = 0
 total_number_of_hit_comingFromPrimaryAfterBeamPipe = 0
+
+string_for_overall_occupancy = ""
 
 for bx_batch_index in range(0, number_of_iteration_on_bx_batches): # first loop to run X times on Y BX's
     print("Iteration number ", bx_batch_index)
@@ -113,7 +119,10 @@ for bx_batch_index in range(0, number_of_iteration_on_bx_batches): # first loop 
     dict_cellID_nHits = {}
     total_number_of_hit_integrated_per_batch = 0
     number_of_cell_with_multiple_hits = 0
-    energy_deposit_R_z = ROOT.TH2F("energy_deposit_R_z", "energy_deposit_R_z", 50, 0, 2100, 50, 0, 2100)
+
+    # what fraction of particles do reach the drift chamber?
+    total_number_of_particles_reaching_dch_per_bx_batch = 0
+    total_number_of_particles_per_bx_batch = 0
 
     # Histogram declarations
     # what is the occupancy per radial layer?
@@ -154,6 +163,7 @@ for bx_batch_index in range(0, number_of_iteration_on_bx_batches): # first loop 
             seen_particle_ids = []
             dict_particle_n_fired_cell = {}
             dict_particle_fired_cell_id = {}
+            total_number_of_particles_per_bx_batch += len(event.get("MCParticles"))
             for dc_hit in event.get("DCHCollection"):
                 total_number_of_hit += 1
                 total_number_of_hit_integrated_per_batch += 1
@@ -176,7 +186,7 @@ for bx_batch_index in range(0, number_of_iteration_on_bx_batches): # first loop 
                     if(dict_cellID_nHits[cellID_unique_identifier] == 1):
                         number_of_cell_with_multiple_hits += 1
                     dict_cellID_nHits[cellID_unique_identifier] += 1
-                # deal with the number of cell fired per particle #FIXME
+                # deal with the number of cell fired per particle #FIXME check that it does the proper thing
                 particle_object_id = str(particle.getObjectID())
                 if particle_object_id not in dict_particle_n_fired_cell.keys(): # the particle was not seen yet
                     dict_particle_n_fired_cell[particle_object_id] = 1
@@ -193,7 +203,7 @@ for bx_batch_index in range(0, number_of_iteration_on_bx_batches): # first loop 
                 dedx_of_dch_hits.Fill(1e+6 * dc_hit.getEDep()/dc_hit.getPathLength())
                 # fill the particle related TH1's (only once, a particle can lead to multiple DC hits)
                 if particle.getObjectID() not in seen_particle_ids:
-                    total_number_of_particles += 1
+                    total_number_of_particles_reaching_dch_per_bx_batch += 1
                     # where are the particles leading to hits in the DC coming from?
                     particle_origin = particle.getVertex()
                     particle_hittingDC_origin_rz.Fill(abs(particle_origin.z), sqrt(particle_origin.x ** 2 + particle_origin.y ** 2))
@@ -233,6 +243,7 @@ for bx_batch_index in range(0, number_of_iteration_on_bx_batches): # first loop 
                 # end of loop on sim hits
             for particleKey in dict_particle_n_fired_cell.keys():
                 n_cell_fired_of_particles_hitting_dch.Fill(dict_particle_n_fired_cell[particleKey])
+                n_cell_fired_of_particles_hitting_dch_log.Fill(dict_particle_n_fired_cell[particleKey])
 
             print("\t\t\tTotal number of bkg hit in the DC from this BX: ", str(total_number_of_hit_thisbx))
             # end of loop on events
@@ -240,14 +251,15 @@ for bx_batch_index in range(0, number_of_iteration_on_bx_batches): # first loop 
         print("\t\tTotal number of bkg hit in the DC accumulating BXs: ", str(total_number_of_hit_integrated_per_batch))
         print("\t\tNumber of fired cells: ", str(len(dict_cellID_nHits.keys())))
         print("\t\tNumber of cells with more than one hit: ", str(number_of_cell_with_multiple_hits))
-        print("\t\tPercentage of fired cells: ", str(len(dict_cellID_nHits.keys())/float(total_number_of_cells)))
-        print("\t\tTotal number of particles that have hit the DC so far: ", total_number_of_particles)
-    with open(os.path.join(plot_folder, "overall_occupancy.txt"), "w") as myfile:
-        myfile.write(f"BX batch iteration {bx_batch_index}, integrating over {number_of_bx} BXs")
-        myfile.write("\tTotal number of bkg hit in the DC accumulating BXs: " + str(total_number_of_hit_integrated_per_batch))
-        myfile.write("\tNumber of fired cells: " + str(len(dict_cellID_nHits.keys())))
-        myfile.write("\tPercentage of fired cells: " + str(len(dict_cellID_nHits.keys())/float(total_number_of_cells)))
-    print(os.path.join(plot_folder, "overall_occupancy.txt"), " written.")
+        print("\t\tPercentage of fired cells: ", str(100 * len(dict_cellID_nHits.keys())/float(total_number_of_cells)), " %")
+        print("\t\tTotal number of particles so far: ", total_number_of_particles_per_bx_batch)
+        print("\t\tTotal number of particles that have hit the DC so far: ", total_number_of_particles_reaching_dch_per_bx_batch)
+        print("\t\tPercentage of particles reaching the DC so far: ", 100 * total_number_of_particles_reaching_dch_per_bx_batch / float(total_number_of_particles_per_bx_batch), " %")
+
+    string_for_overall_occupancy += f"BX batch iteration {bx_batch_index}, integrating over {number_of_bx} BXs\n"
+    string_for_overall_occupancy += f"\tTotal number of bkg hit in the DC accumulating BXs: {total_number_of_hit_integrated_per_batch}\n"
+    string_for_overall_occupancy += f"\tNumber of fired cells: {len(dict_cellID_nHits.keys())}\n"
+    string_for_overall_occupancy += f"\tPercentage of fired cells: {len(dict_cellID_nHits.keys())/float(total_number_of_cells)}\n"
 
     # Write the "per batch" histograms that have to be integrated over the BXs inside a single batch
     draw_histo(DC_simhit_position_rz, "colz")
@@ -272,3 +284,8 @@ isPrimary_of_particles_hitting_dch.Scale(1/isPrimary_of_particles_hitting_dch.In
 draw_histo(isPrimary_of_particles_hitting_dch)
 draw_histo(oldestParentVertexRadius_of_particles_hitting_dch)
 draw_histo(n_cell_fired_of_particles_hitting_dch)
+draw_histo(n_cell_fired_of_particles_hitting_dch_log, logY = True)
+
+with open(os.path.join(plot_folder, "overall_occupancy.txt"), "w") as myfile:
+    myfile.write(string_for_overall_occupancy)
+print(os.path.join(plot_folder, "overall_occupancy.txt"), " written.")
