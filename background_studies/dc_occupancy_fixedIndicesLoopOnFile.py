@@ -1,4 +1,4 @@
-import os, sys, glob
+import os, sys
 import ROOT
 from podio import root_io
 import dd4hep as dd4hepModule
@@ -18,23 +18,14 @@ ROOT.gStyle.SetTextSize(22)
 #bkg_file_directory =  "/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_Apr2024/sim_boost_bfield_k4geo_version/"
 #bkg_file_directory =  "/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_Apr2024/sim_boost_bfield_k4geo_version_Geant4TrackerAction_edep0/"
 # NEW beampie 
-#bkg_file_directory = "/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_June2024_v23/ddsimoutput/new_beampipe_default_ddsim_config/"
-bkg_file_directory = "/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_June2024_v23/ddsimoutput/new_beampipe_default_ddsim_config_addLumiCalAndBeamInstrumentation/"
-file_name_template = "IDEA_o1_v03_*.root"
-plot_folder = "new_beampipe_default_ddsim_config_plots_addLumiCal_instrumentation_2Iteration"
-number_of_iteration_on_bx_batches = 10
+bkg_file_directory = "/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_June2024_v23/ddsimoutput/new_beampipe_default_ddsim_config/"
+file_name_template = "IDEA_01_v03_pairs_XX.root"
+plot_folder = "new_beampipe_default_ddsim_config_plots"
+number_of_iteration_on_bx_batches = 2
 number_of_bx = 40
 bunch_spacing = 20 # ns
 if not os.path.isdir(plot_folder):
     os.mkdir(plot_folder)
-
-single_bx_files = glob.glob(os.path.join(bkg_file_directory, file_name_template))
-# filter possible hadded files
-for single_bx_file in single_bx_files:
-    file_index = os.path.basename(single_bx_file).split("_")[-1].replace(".root", "")
-    if not file_index.isnumeric():
-        print(f"INFO: removing {single_bx_file} from the file list because it looks like an hadded file")
-        single_bx_files.remove(single_bx_file)
 
 def draw_histo(histo, drawOptions = "", path = plot_folder, logY = False):
     name = histo.GetName()
@@ -124,11 +115,9 @@ total_number_of_hit_comingFromPrimaryAfterBeamPipe = 0
 
 string_for_overall_occupancy = ""
 
-overall_occupancy = []
-
 for bx_batch_index in range(0, number_of_iteration_on_bx_batches): # first loop to run X times on Y BX's
     print("Iteration number ", bx_batch_index)
-    bx_files_seen_so_far = []
+    file_bx_index_list = [bx_batch_index * number_of_bx + i for i in range(1, number_of_bx + 1)]
     dict_cellID_nHits = {}
     total_number_of_hit_integrated_per_batch = 0
     number_of_cell_with_multiple_hits = 0
@@ -164,16 +153,8 @@ for bx_batch_index in range(0, number_of_iteration_on_bx_batches): # first loop 
     DC_fired_cell_map.GetYaxis().SetTitle("Cell layer index")
     DC_fired_cell_map.GetZaxis().SetTitle("Energy [MeV]")
 
-    for single_bx_file in single_bx_files:
-        if single_bx_file in bx_files_seen_so_far:
-            print("Error: already ran over this BX! Exitting...")
-            sys.exit(1)
-        if len(bx_files_seen_so_far) == number_of_bx:
-            print(f"Reached the number of BX needed {number_of_bx}")
-            break
-        bx_files_seen_so_far.append(single_bx_file)
-        single_bx_files.remove(single_bx_file) # make sure we do not re-run always on the same files
-        input_file_path = single_bx_file
+    for file_bx_index in file_bx_index_list: # loop over the set of file for this batch of BX's
+        input_file_path = os.path.join(bkg_file_directory, file_name_template.replace("XX", str(file_bx_index)))
         print("\tTreating: %s"%input_file_path)
         podio_reader = root_io.Reader(input_file_path)
         metadata = podio_reader.get("metadata")[0]
@@ -221,8 +202,7 @@ for bx_batch_index in range(0, number_of_iteration_on_bx_batches): # first loop 
                 # Map of the fired cells energies
                 DC_fired_cell_map.Fill(nphi, unique_layer_index, 1e+3*dc_hit.getEDep())
                 # what is the de/DX of the background particles/muons (from another rootfile)?
-                if not dc_hit.getPathLength() == 0:
-                    dedx_of_dch_hits.Fill(1e+6 * dc_hit.getEDep()/dc_hit.getPathLength())
+                dedx_of_dch_hits.Fill(1e+6 * dc_hit.getEDep()/dc_hit.getPathLength())
                 # fill the particle related TH1's (only once, a particle can lead to multiple DC hits)
                 if particle.getObjectID() not in seen_particle_ids:
                     total_number_of_particles_reaching_dch_per_bx_batch += 1
@@ -268,22 +248,15 @@ for bx_batch_index in range(0, number_of_iteration_on_bx_batches): # first loop 
                 n_cell_fired_of_particles_hitting_dch_log.Fill(dict_particle_n_fired_cell[particleKey])
 
             print("\t\t\tTotal number of bkg hit in the DC from this BX: ", str(total_number_of_hit_thisbx))
-            # end of loop on events (there is 1 event per BX so it is equivalent to the loop on BXs)
+            # end of loop on events
 
-        percentage_of_fired_cells = 100 * len(dict_cellID_nHits.keys())/float(total_number_of_cells)
         print("\t\tTotal number of bkg hit in the DC accumulating BXs: ", str(total_number_of_hit_integrated_per_batch))
         print("\t\tNumber of fired cells: ", str(len(dict_cellID_nHits.keys())))
         print("\t\tNumber of cells with more than one hit: ", str(number_of_cell_with_multiple_hits))
-        print("\t\tPercentage of fired cells: ", percentage_of_fired_cells, " %")
+        print("\t\tPercentage of fired cells: ", str(100 * len(dict_cellID_nHits.keys())/float(total_number_of_cells)), " %")
         print("\t\tTotal number of particles so far: ", total_number_of_particles_per_bx_batch)
         print("\t\tTotal number of particles that have hit the DC so far: ", total_number_of_particles_reaching_dch_per_bx_batch)
         print("\t\tPercentage of particles reaching the DC so far: ", 100 * total_number_of_particles_reaching_dch_per_bx_batch / float(total_number_of_particles_per_bx_batch), " %")
-
-        # end of loop on BX files
-
-    if len(bx_files_seen_so_far) < number_of_bx:
-        print(f"There were not enough files left to complete iteration {bx_batch_index}: {number_of_bx} required, {len(bx_files_seen_so_far)} available. Stopping here.")
-        break
 
     string_for_overall_occupancy += f"BX batch iteration {bx_batch_index}, integrating over {number_of_bx} BXs\n"
     string_for_overall_occupancy += f"\tTotal number of bkg hit in the DC accumulating BXs: {total_number_of_hit_integrated_per_batch}\n"
@@ -298,9 +271,9 @@ for bx_batch_index in range(0, number_of_iteration_on_bx_batches): # first loop 
         raw_bin_content = occupancy_per_layer.GetBinContent(unique_layer_index + 1) # NB: we use the trick that the bin index here is the same as the layer index it corresponds to, just binIdx 0 is underflow
         occupancy_per_layer.SetBinContent(unique_layer_index + 1, 100 * raw_bin_content/float(n_cell_per_layer[str(unique_layer_index)])) # unique_layer_index and n_cell_per_layer key definitions coincide
     draw_histo(occupancy_per_layer)
-    overall_occupancy.append(percentage_of_fired_cells)
+    # end of loop on BX's for the given BX batch iteration
 
-#print(f"Percentage of hit coming from primary particles with vertex radius after beampipe: {total_number_of_hit_comingFromPrimaryAfterBeamPipe / float(total_number_of_hit)}")
+print(f"Percentage of hit coming from primary particles with vertex radius after beampipe: {total_number_of_hit_comingFromPrimaryAfterBeamPipe / float(total_number_of_hit)}")
 # end of loop on BX batches
 draw_histo(particle_hittingDC_origin_rz, "colz")
 draw_histo(dedx_of_dch_hits)
@@ -315,8 +288,6 @@ draw_histo(oldestParentVertexRadius_of_particles_hitting_dch)
 draw_histo(n_cell_fired_of_particles_hitting_dch)
 draw_histo(n_cell_fired_of_particles_hitting_dch_log, logY = True)
 
-print("Overall occupancies for all iterations: ", str(overall_occupancy))
 with open(os.path.join(plot_folder, "overall_occupancy.txt"), "w") as myfile:
     myfile.write(string_for_overall_occupancy)
-    myfile.write("Overall occupancies for each iteration: " + str(overall_occupancy))
 print(os.path.join(plot_folder, "overall_occupancy.txt"), " written.")
