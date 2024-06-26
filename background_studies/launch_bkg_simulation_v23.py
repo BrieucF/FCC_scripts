@@ -1,7 +1,8 @@
 import os, sys, stat
 
 campaign_name = sys.argv[1]
-input_file_path = "/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_June2024_v23/"
+#input_file_path = "/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_June2024_v23/"
+input_file_path = "/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_June2024_v23_vtx000/"
 reco_storage_path_global = os.path.join(input_file_path, "ddsimoutput")
 if not os.path.isdir(reco_storage_path_global):
     os.mkdir(reco_storage_path_global)
@@ -29,13 +30,16 @@ queue filename matching files {0}
 """.format(executable_path_template.replace("FILENAME", "*"))
 
 executable_header = """#!/bin/bash
-source /cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh
+#source /cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh
+source /cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh -r 2024-06-06 # closest stable stack is 2024-04-12 or the one just after (I think the 2024-04-12 won't be able to run the DC)
 cd /afs/cern.ch/user/b/brfranco/work/public/background_studies/k4geo/
 k4_local_repo
 cd -
 """
 
 for folder in os.listdir(input_file_path):
+    if not "data" in folder:
+        continue
     index = folder.replace("data", "")
     input_filename = os.path.join(input_file_path, folder, "pairs.pairs")
     print(input_filename)

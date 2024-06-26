@@ -21,9 +21,9 @@ ROOT.gStyle.SetTextSize(22)
 #bkg_file_directory = "/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_June2024_v23/ddsimoutput/new_beampipe_default_ddsim_config/"
 bkg_file_directory = "/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_June2024_v23/ddsimoutput/new_beampipe_default_ddsim_config_addLumiCalAndBeamInstrumentation/"
 file_name_template = "IDEA_o1_v03_*.root"
-plot_folder = "new_beampipe_default_ddsim_config_plots_addLumiCal_instrumentation_2Iteration"
+plot_folder = "plots_new_beampipe_default_ddsim_config_addLumiCalAndBeamInstrumentation_integrationTime400ns"
 number_of_iteration_on_bx_batches = 10
-number_of_bx = 40
+number_of_bx = 20
 bunch_spacing = 20 # ns
 if not os.path.isdir(plot_folder):
     os.mkdir(plot_folder)
@@ -78,6 +78,11 @@ energy_of_particles_hitting_dch_with_photon_parent =  ROOT.TH1F(f"energy_of_part
 energy_of_particles_hitting_dch_with_photon_parent.SetTitle(f"Energy of photon originating particles hitting the DCH ({number_of_iteration_on_bx_batches * number_of_bx} BXs)")
 energy_of_particles_hitting_dch_with_photon_parent.GetXaxis().SetTitle("Energy [GeV]")
 energy_of_particles_hitting_dch_with_photon_parent.GetYaxis().SetTitle("Number of entries")
+# what is the pt of the particles actually hitting the DC and with vertex radius below 10 cm
+pt_of_particles_hitting_dch_below_10cm = ROOT.TH1F(f"pt_of_particles_hitting_dch_below_10cm", f"pt_of_particles_hitting_dch_below_10cm", 50, 0, 0.1)
+pt_of_particles_hitting_dch_below_10cm.SetTitle(f"P_{{T}} of bkg particles hitting the DCH and with VTX radius < 10 cm ({number_of_iteration_on_bx_batches * number_of_bx} BXs)")
+pt_of_particles_hitting_dch_below_10cm.GetXaxis().SetTitle("P_{T} [GeV]")
+pt_of_particles_hitting_dch_below_10cm.GetYaxis().SetTitle("Number of entries")
 # what is the de/DX of the background particles/muons (from another rootfile)?
 dedx_of_dch_hits =  ROOT.TH1F(f"dedx_of_dch_hits", f"dedx_of_dch_hits", 50, 0, 1)
 dedx_of_dch_hits.SetTitle(f"dE/dx of DCH hits")
@@ -126,6 +131,7 @@ string_for_overall_occupancy = ""
 
 overall_occupancy = []
 
+bx_seen = 0
 for bx_batch_index in range(0, number_of_iteration_on_bx_batches): # first loop to run X times on Y BX's
     print("Iteration number ", bx_batch_index)
     bx_files_seen_so_far = []
@@ -180,6 +186,13 @@ for bx_batch_index in range(0, number_of_iteration_on_bx_batches): # first loop 
         cellid_encoding = metadata.get_parameter("DCHCollection__CellIDEncoding")
         decoder = dd4hep.BitFieldCoder(cellid_encoding)
         for event in podio_reader.get("events"):
+            bx_seen += 1 # now there is one event per rootfile representing 1 bx, may change in future so place the counter here
+            # where are the particles leading to hits in the DC coming from and what energy do they have per bx?
+            particle_hittingDC_origin_rz_pt_per_bx = ROOT.TH2F(f"particle_hittingDC_origin_rz_pt_bx_{bx_seen}", "particle_hittingDC_origin_rz_pt_bx_{bx_seen}", 100, 0, 2000, 100, 0, 2000)
+            particle_hittingDC_origin_rz_pt_per_bx.SetTitle(f"Origin of bkg particles hitting the DCH ({number_of_iteration_on_bx_batches * number_of_bx} BXs)")
+            particle_hittingDC_origin_rz_pt_per_bx.GetXaxis().SetTitle("z [mm]")
+            particle_hittingDC_origin_rz_pt_per_bx.GetYaxis().SetTitle("r [mm]")
+            particle_hittingDC_origin_rz_pt_per_bx.GetZaxis().SetTitle("P_{T} [GeV]")
             total_number_of_hit_thisbx = 0
             seen_particle_ids = []
             dict_particle_n_fired_cell = {}
@@ -225,13 +238,17 @@ for bx_batch_index in range(0, number_of_iteration_on_bx_batches): # first loop 
                     dedx_of_dch_hits.Fill(1e+6 * dc_hit.getEDep()/dc_hit.getPathLength())
                 # fill the particle related TH1's (only once, a particle can lead to multiple DC hits)
                 if particle.getObjectID() not in seen_particle_ids:
+                    particle_fourvector = ROOT.Math.LorentzVector('ROOT::Math::PxPyPzM4D<double>')(particle.getMomentum().x, particle.getMomentum().y, particle.getMomentum().z, particle.getMass())
                     total_number_of_particles_reaching_dch_per_bx_batch += 1
                     # where are the particles leading to hits in the DC coming from?
                     particle_origin = particle.getVertex()
                     particle_hittingDC_origin_rz.Fill(abs(particle_origin.z), sqrt(particle_origin.x ** 2 + particle_origin.y ** 2))
+                    particle_hittingDC_origin_rz_pt_per_bx.Fill(abs(particle_origin.z), sqrt(particle_origin.x ** 2 + particle_origin.y ** 2), particle_fourvector.pt())
                     # what is the energy of the particles actually hitting the DC
-                    particle_fourvector = ROOT.Math.LorentzVector('ROOT::Math::PxPyPzM4D<double>')(particle.getMomentum().x, particle.getMomentum().y, particle.getMomentum().z, particle.getMass())
                     energy_of_particles_hitting_dch.Fill(particle_fourvector.E())
+                    # what is the pt of the particles actually hitting the DC and with vertex radius below 10 cm
+                    if(sqrt(particle_origin.x ** 2 + particle_origin.y ** 2) < 100):
+                        pt_of_particles_hitting_dch_below_10cm.Fill(particle_fourvector.pt())
                     # what is the particle pdgid hitting DC?
                     pdgid_of_particles_hitting_dch.Fill(particle.getPDG())
                     # all particles leaving signals in DCH are electrons or positrons, is their parent a photon?
@@ -268,6 +285,7 @@ for bx_batch_index in range(0, number_of_iteration_on_bx_batches): # first loop 
                 n_cell_fired_of_particles_hitting_dch_log.Fill(dict_particle_n_fired_cell[particleKey])
 
             print("\t\t\tTotal number of bkg hit in the DC from this BX: ", str(total_number_of_hit_thisbx))
+            draw_histo(particle_hittingDC_origin_rz_pt_per_bx, "colz")
             # end of loop on events (there is 1 event per BX so it is equivalent to the loop on BXs)
 
         percentage_of_fired_cells = 100 * len(dict_cellID_nHits.keys())/float(total_number_of_cells)
@@ -314,6 +332,7 @@ draw_histo(isPrimary_of_particles_hitting_dch)
 draw_histo(oldestParentVertexRadius_of_particles_hitting_dch)
 draw_histo(n_cell_fired_of_particles_hitting_dch)
 draw_histo(n_cell_fired_of_particles_hitting_dch_log, logY = True)
+draw_histo(pt_of_particles_hitting_dch_below_10cm)
 
 print("Overall occupancies for all iterations: ", str(overall_occupancy))
 with open(os.path.join(plot_folder, "overall_occupancy.txt"), "w") as myfile:
