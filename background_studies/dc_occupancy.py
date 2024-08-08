@@ -19,10 +19,13 @@ ROOT.gStyle.SetTextSize(22)
 #bkg_file_directory =  "/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_Apr2024/sim_boost_bfield_k4geo_version_Geant4TrackerAction_edep0/"
 # NEW beampie 
 #bkg_file_directory = "/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_June2024_v23/ddsimoutput/new_beampipe_default_ddsim_config/"
-bkg_file_directory = "/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_June2024_v23/ddsimoutput/new_beampipe_default_ddsim_config_addLumiCalAndBeamInstrumentation/"
+#bkg_file_directory = "/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_June2024_v23/ddsimoutput/new_beampipe_default_ddsim_config_addLumiCalAndBeamInstrumentation/"
+#bkg_file_directory = "/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_June2024_v23_vtx000/ddsimoutput/guineaPig_andrea_June2024_v23_vtx000/"
+# Fix in Geant4
+bkg_file_directory = "/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_June2024_v23/ddsimoutput_afterG4Fix/June2024_v23_afterG4Fix/"
 file_name_template = "IDEA_o1_v03_*.root"
-plot_folder = "plots_new_beampipe_default_ddsim_config_addLumiCalAndBeamInstrumentation_integrationTime400ns"
-number_of_iteration_on_bx_batches = 10
+plot_folder = "plots_new_beampipe_default_ddsim_config_addLumiCalAndBeamInstrumentation_integrationTime400ns_G4Fix"
+number_of_iteration_on_bx_batches = 199 # max 199
 number_of_bx = 20
 bunch_spacing = 20 # ns
 if not os.path.isdir(plot_folder):
@@ -124,12 +127,21 @@ n_cell_fired_of_particles_hitting_dch_log.SetTitle(f"Number of cell fired by par
 n_cell_fired_of_particles_hitting_dch_log.GetXaxis().SetTitle("Number of cell fired by the particle")
 n_cell_fired_of_particles_hitting_dch_log.GetYaxis().SetTitle("Number of entries")
 
+# variable to make averaged plots over many bx's
+occupancy_per_layer_profile = ROOT.TProfile("occupancy_per_layer_profile", "occupancy_per_layer_profile", 112, 0, 112, "s")
+occupancy_per_layer_profile.SetTitle(f"Average occupancy per layer, {number_of_bx} BXs ran {number_of_iteration_on_bx_batches} times")
+occupancy_per_layer_profile.GetXaxis().SetTitle("Radial layer index")
+occupancy_per_layer_profile.GetYaxis().SetTitle("Average channel occupancy [%]")
+occupancies_per_layer = []
+overall_occupancies = []
+
 total_number_of_hit = 0
 total_number_of_hit_comingFromPrimaryAfterBeamPipe = 0
 
-string_for_overall_occupancy = ""
+string_for_overall_occupancies = ""
 
-overall_occupancy = []
+# cross check the number of cell
+dict_layer_phiSet = {}
 
 bx_seen = 0
 for bx_batch_index in range(0, number_of_iteration_on_bx_batches): # first loop to run X times on Y BX's
@@ -138,6 +150,9 @@ for bx_batch_index in range(0, number_of_iteration_on_bx_batches): # first loop 
     dict_cellID_nHits = {}
     total_number_of_hit_integrated_per_batch = 0
     number_of_cell_with_multiple_hits = 0
+
+    # vairable to make averaged plots over many bx's
+    list_occupancy_per_layer = []
 
     # what fraction of particles do reach the drift chamber?
     total_number_of_particles_reaching_dch_per_bx_batch = 0
@@ -211,6 +226,11 @@ for bx_batch_index in range(0, number_of_iteration_on_bx_batches): # first loop 
                     print("Error: layer or super layer index out of range")
                     print(f"Layer: {layer} while max layer is {n_layers_per_superlayer - 1}. Superlayer: {superlayer} while max superlayer is {n_superlayers - 1}.")
                 unique_layer_index = superlayer * n_layers_per_superlayer + layer
+                # cross check the number of cell
+                if not unique_layer_index in dict_layer_phiSet.keys():
+                    dict_layer_phiSet[unique_layer_index] = {nphi}
+                else:
+                    dict_layer_phiSet[unique_layer_index].add(nphi)
                 cellID_unique_identifier = "SL_" + str(superlayer)  + "_L_" + str(layer) + "_nphi_" + str(nphi) 
                 # what is the occupancy?
                 if not cellID_unique_identifier in dict_cellID_nHits.keys(): # the cell was not fired yet
@@ -300,23 +320,24 @@ for bx_batch_index in range(0, number_of_iteration_on_bx_batches): # first loop 
         # end of loop on BX files
 
     if len(bx_files_seen_so_far) < number_of_bx:
-        print(f"There were not enough files left to complete iteration {bx_batch_index}: {number_of_bx} required, {len(bx_files_seen_so_far)} available. Stopping here.")
+        print(f"\033[91mThere were not enough files left to complete iteration {bx_batch_index}: {number_of_bx} required, {len(bx_files_seen_so_far)} available. Stopping here.\033[0m")
         break
 
-    string_for_overall_occupancy += f"BX batch iteration {bx_batch_index}, integrating over {number_of_bx} BXs\n"
-    string_for_overall_occupancy += f"\tTotal number of bkg hit in the DC accumulating BXs: {total_number_of_hit_integrated_per_batch}\n"
-    string_for_overall_occupancy += f"\tNumber of fired cells: {len(dict_cellID_nHits.keys())}\n"
-    string_for_overall_occupancy += f"\tPercentage of fired cells: {len(dict_cellID_nHits.keys())/float(total_number_of_cells)}\n"
+    string_for_overall_occupancies += f"BX batch iteration {bx_batch_index}, integrating over {number_of_bx} BXs\n"
+    string_for_overall_occupancies += f"\tTotal number of bkg hit in the DC accumulating BXs: {total_number_of_hit_integrated_per_batch}\n"
+    string_for_overall_occupancies += f"\tNumber of fired cells: {len(dict_cellID_nHits.keys())}\n"
+    string_for_overall_occupancies += f"\tPercentage of fired cells: {len(dict_cellID_nHits.keys())/float(total_number_of_cells)}\n"
 
     # Write the "per batch" histograms that have to be integrated over the BXs inside a single batch
     draw_histo(DC_simhit_position_rz, "colz")
     draw_histo(DC_fired_cell_map, "colz")
-    # Normalize the occupancy per layer th1
+    # Normalize the occupancy per layer th1 (divide the number of cell fired by the total number of cell) and fill the TProfile of occupancies
     for unique_layer_index in range(0, total_number_of_layers):
         raw_bin_content = occupancy_per_layer.GetBinContent(unique_layer_index + 1) # NB: we use the trick that the bin index here is the same as the layer index it corresponds to, just binIdx 0 is underflow
         occupancy_per_layer.SetBinContent(unique_layer_index + 1, 100 * raw_bin_content/float(n_cell_per_layer[str(unique_layer_index)])) # unique_layer_index and n_cell_per_layer key definitions coincide
+        occupancy_per_layer_profile.Fill(unique_layer_index, 100 * raw_bin_content/float(n_cell_per_layer[str(unique_layer_index)]))
     draw_histo(occupancy_per_layer)
-    overall_occupancy.append(percentage_of_fired_cells)
+    overall_occupancies.append(percentage_of_fired_cells)
 
 #print(f"Percentage of hit coming from primary particles with vertex radius after beampipe: {total_number_of_hit_comingFromPrimaryAfterBeamPipe / float(total_number_of_hit)}")
 # end of loop on BX batches
@@ -333,9 +354,26 @@ draw_histo(oldestParentVertexRadius_of_particles_hitting_dch)
 draw_histo(n_cell_fired_of_particles_hitting_dch)
 draw_histo(n_cell_fired_of_particles_hitting_dch_log, logY = True)
 draw_histo(pt_of_particles_hitting_dch_below_10cm)
+draw_histo(occupancy_per_layer_profile)
 
-print("Overall occupancies for all iterations: ", str(overall_occupancy))
-with open(os.path.join(plot_folder, "overall_occupancy.txt"), "w") as myfile:
-    myfile.write(string_for_overall_occupancy)
-    myfile.write("Overall occupancies for each iteration: " + str(overall_occupancy))
-print(os.path.join(plot_folder, "overall_occupancy.txt"), " written.")
+print("Overall occupancies for all iterations: ", str(overall_occupancies))
+with open(os.path.join(plot_folder, "overall_occupancies.txt"), "w") as myfile:
+    myfile.write(string_for_overall_occupancies)
+    myfile.write("Overall occupancies for each iteration: " + str(overall_occupancies))
+print(os.path.join(plot_folder, "overall_occupancies.txt"), " written.")
+
+# cross check the number of cell
+for layer in dict_layer_phiSet.keys():
+    print(f"Number of phi cells in layer {layer}")
+    print(len(dict_layer_phiSet[layer]))
+    print(dict_layer_phiSet[layer])
+
+# draw averaged quantities
+overall_occupancies_th1 = ROOT.TH1F(f"overall_occupancies_th1", f"overall_occupancies_th1", 50, 0, 5)
+overall_occupancies_th1.SetTitle(f"DC overall occupancy, {number_of_bx} BXs ran {number_of_iteration_on_bx_batches} times")
+overall_occupancies_th1.GetXaxis().SetTitle("Overall occupancy [%]")
+overall_occupancies_th1.GetYaxis().SetTitle("Number of entries")
+for occupancy in overall_occupancies:
+    overall_occupancies_th1.Fill(occupancy)
+draw_histo(overall_occupancies_th1)
+
