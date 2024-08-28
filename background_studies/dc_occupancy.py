@@ -22,10 +22,15 @@ ROOT.gStyle.SetTextSize(22)
 #bkg_file_directory = "/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_June2024_v23/ddsimoutput/new_beampipe_default_ddsim_config_addLumiCalAndBeamInstrumentation/"
 #bkg_file_directory = "/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_June2024_v23_vtx000/ddsimoutput/guineaPig_andrea_June2024_v23_vtx000/"
 # Fix in Geant4
-bkg_file_directory = "/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_June2024_v23/ddsimoutput_afterG4Fix/June2024_v23_afterG4Fix/"
+#bkg_file_directory = "/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_June2024_v23/ddsimoutput_afterG4Fix/June2024_v23_afterG4Fix/"
+#bkg_file_directory = "/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_June2024_v23/ddsimoutput_afterG4Fix_CADbeampipe/June2024_v23_afterG4Fix_CADbeampipe/"
+bkg_file_directory = "/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_June2024_v23/ddsimoutput_afterG4Fix_CADbeampipe_keepAllParticles/June2024_v23_afterG4Fix_CADbeampipe_keepAllParticles/"
+#bkg_file_directory = "/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_June2024_v23/ddsimoutput_afterG4Fix_CADbeampipe_noCopperCrotch/June2024_v23_afterG4Fix_CADbeampipe_noCopperCrotch/"
 file_name_template = "IDEA_o1_v03_*.root"
-plot_folder = "plots_new_beampipe_default_ddsim_config_addLumiCalAndBeamInstrumentation_integrationTime400ns_G4Fix"
-number_of_iteration_on_bx_batches = 199 # max 199
+#plot_folder = "plots_new_beampipe_default_ddsim_config_addLumiCalAndBeamInstrumentation_integrationTime400ns_G4Fix_logzHitOrigin"
+#plot_folder = "plots_10Gev_mu_100_evt_tryFixObjID"
+plot_folder = "plots_new_beampipe_default_ddsim_config_addLumiCalAndBeamInstrumentation_integrationTime400ns_G4Fix_CADbeampipe_keepAllParticles"
+number_of_iteration_on_bx_batches = 100 # max 199
 number_of_bx = 20
 bunch_spacing = 20 # ns
 if not os.path.isdir(plot_folder):
@@ -47,9 +52,13 @@ def draw_histo(histo, drawOptions = "", path = plot_folder, logY = False):
         canvas.SetRightMargin(0.15)
         if "map" in name:
             canvas.SetGrid()
+        if "logz" in drawOptions:
+            canvas.SetLogz()
+            name += "_logz"
     histo.Draw(drawOptions)
     if logY:
         canvas.SetLogy()
+        name += "_logy"
     canvas.Print(os.path.join(path, name + ".png"))
 
 # Drift chamber geometry parameters
@@ -96,23 +105,33 @@ pdgid_of_particles_hitting_dch =  ROOT.TH1F(f"pdgid_of_particles_hitting_dch", f
 pdgid_of_particles_hitting_dch.SetTitle(f"PDG ID of bkg particles hitting the DCH")
 pdgid_of_particles_hitting_dch.GetXaxis().SetTitle("PDG ID")
 pdgid_of_particles_hitting_dch.GetYaxis().SetTitle("Arbitrary units")
-# all particles leaving signals in DCH are electrons or positrons, is their parent a photon?
+# most particles leaving signals in DCH are electrons or positrons (because photon kick out electron that then leave a signal), is their parent a photon?
 hasPhotonParent_of_particles_hitting_dch =  ROOT.TH1F(f"hasPhotonParent_of_particles_hitting_dch", f"hasPhotonParent_of_particles_hitting_dch", 2, 0, 2)
 hasPhotonParent_of_particles_hitting_dch.SetTitle(f"Was the particle produced by a photon?")
 hasPhotonParent_of_particles_hitting_dch.GetXaxis().SetTitle("Has photon parent?")
 hasPhotonParent_of_particles_hitting_dch.GetYaxis().SetTitle("Arbitrary units")
-# are the particles hitting dc primaries or secondaries?
+# most particles leaving signals in DCH are electrons or positrons (because photon kick out electron that then leave a signal), is their parent a photon or is it a photon itself?
+hasPhotonParentOrIsPhoton_of_particles_hitting_dch =  ROOT.TH1F(f"hasPhotonParentOrIsPhoton_of_particles_hitting_dch", f"hasPhotonParentOrIsPhoton_of_particles_hitting_dch", 2, 0, 2)
+hasPhotonParentOrIsPhoton_of_particles_hitting_dch.SetTitle(f"Was the particle produced by a photon?")
+hasPhotonParentOrIsPhoton_of_particles_hitting_dch.GetXaxis().SetTitle("Has photon parent?")
+hasPhotonParentOrIsPhoton_of_particles_hitting_dch.GetYaxis().SetTitle("Arbitrary units")
+# are the particles hitting dc primaries or secondaries? Filled once per MCParticle (ill defined currently because if the secondary is not kept in the output the hit points to the primary)
 isPrimary_of_particles_hitting_dch =  ROOT.TH1F(f"isPrimary_of_particles_hitting_dch", f"isPrimary_of_particles_hitting_dch", 2, 0, 2)
 isPrimary_of_particles_hitting_dch.SetTitle(f"Is the particle a primary?")
 isPrimary_of_particles_hitting_dch.GetXaxis().SetTitle("Is primary?")
 isPrimary_of_particles_hitting_dch.GetYaxis().SetTitle("Arbitrary units")
+# are the hit from the DC coming from a primary particle or not? # w.r.t. to isPrimary_of_particles_hitting_dch, this one is filled once per hit
+isPrimary_of_particle_attached_to_hits =  ROOT.TH1F(f"isPrimary_of_particle_attached_to_hits", f"isPrimary_of_particle_attached_to_hits", 2, 0, 2)
+isPrimary_of_particle_attached_to_hits.SetTitle(f"Is the particle a primary?")
+isPrimary_of_particle_attached_to_hits.GetXaxis().SetTitle("Is primary?")
+isPrimary_of_particle_attached_to_hits.GetYaxis().SetTitle("Arbitrary units")
 # what is the vertex radius of the oldest parent (original primary particle)?
 oldestParentVertexRadius_of_particles_hitting_dch =  ROOT.TH1F(f"oldestParentVertexRadius_of_particles_hitting_dch", f"oldestParentVertexRadius_of_particles_hitting_dch", 50, 0, 50)
 oldestParentVertexRadius_of_particles_hitting_dch.SetTitle(f"Radius of oldest parent for particles hitting the DCH")
 oldestParentVertexRadius_of_particles_hitting_dch.GetXaxis().SetTitle("Radius [mm]")
 oldestParentVertexRadius_of_particles_hitting_dch.GetYaxis().SetTitle("Number of entries")
 # where are the particles leading to hits in the DC coming from?
-particle_hittingDC_origin_rz = ROOT.TH2F("particle_hittingDC_origin_rz", "particle_hittingDC_origin_rz", 100, 0, 2000, 100, 0, 200)
+particle_hittingDC_origin_rz = ROOT.TH2F("particle_hittingDC_origin_rz", "particle_hittingDC_origin_rz", 100, 0, 2500, 100, 0, 200)
 particle_hittingDC_origin_rz.SetTitle(f"Origin of bkg particles hitting the DCH ({number_of_iteration_on_bx_batches * number_of_bx} BXs)")
 particle_hittingDC_origin_rz.GetXaxis().SetTitle("z [mm]")
 particle_hittingDC_origin_rz.GetYaxis().SetTitle("r [mm]")
@@ -122,10 +141,23 @@ n_cell_fired_of_particles_hitting_dch.SetTitle(f"Number of cell fired by particl
 n_cell_fired_of_particles_hitting_dch.GetXaxis().SetTitle("Number of cell fired by the particle")
 n_cell_fired_of_particles_hitting_dch.GetYaxis().SetTitle("Number of entries")
 # how many cells are fired by a bkg particle in log scale?
-n_cell_fired_of_particles_hitting_dch_log =  ROOT.TH1F(f"n_cell_fired_of_particles_hitting_dch_log", f"n_cell_fired_of_particles_hitting_dch_log", 50, 0, 112)
+n_cell_fired_of_particles_hitting_dch_log =  ROOT.TH1F(f"n_cell_fired_of_particles_hitting_dch_log", f"n_cell_fired_of_particles_hitting_dch_log", 50, 0, 150)
 n_cell_fired_of_particles_hitting_dch_log.SetTitle(f"Number of cell fired by particles hitting the DCH")
 n_cell_fired_of_particles_hitting_dch_log.GetXaxis().SetTitle("Number of cell fired by the particle")
 n_cell_fired_of_particles_hitting_dch_log.GetYaxis().SetTitle("Number of entries")
+###
+###
+# MC Particle loop related definition
+pt_all_electrons =  ROOT.TH1F(f"pt_all_electrons", f"pt_all_electrons", 50, 0, 1)
+pt_all_electrons.SetTitle(f"P_{{T}} of all electrons")
+pt_all_electrons.GetXaxis().SetTitle("GeV")
+pt_all_electrons.GetYaxis().SetTitle("Number of entries")
+
+pt_primary_electrons =  ROOT.TH1F(f"pt_primary_electrons", f"pt_primary_electrons", 50, 0, 1)
+pt_primary_electrons.SetTitle(f"P_{{T}} of primary electrons")
+pt_primary_electrons.GetXaxis().SetTitle("GeV")
+pt_primary_electrons.GetYaxis().SetTitle("Number of entries")
+
 
 # variable to make averaged plots over many bx's
 occupancy_per_layer_profile = ROOT.TProfile("occupancy_per_layer_profile", "occupancy_per_layer_profile", 112, 0, 112, "s")
@@ -195,6 +227,7 @@ for bx_batch_index in range(0, number_of_iteration_on_bx_batches): # first loop 
         bx_files_seen_so_far.append(single_bx_file)
         single_bx_files.remove(single_bx_file) # make sure we do not re-run always on the same files
         input_file_path = single_bx_file
+        #input_file_path = "/afs/cern.ch/user/b/brfranco/work/public/background_studies/k4geo/10Gev_mu_100_evt.root"
         print("\tTreating: %s"%input_file_path)
         podio_reader = root_io.Reader(input_file_path)
         metadata = podio_reader.get("metadata")[0]
@@ -202,8 +235,16 @@ for bx_batch_index in range(0, number_of_iteration_on_bx_batches): # first loop 
         decoder = dd4hep.BitFieldCoder(cellid_encoding)
         for event in podio_reader.get("events"):
             bx_seen += 1 # now there is one event per rootfile representing 1 bx, may change in future so place the counter here
+            # loop over MCParticles
+            for particle in event.get("MCParticles"):
+                particle_fourvector = ROOT.Math.LorentzVector('ROOT::Math::PxPyPzM4D<double>')(particle.getMomentum().x, particle.getMomentum().y, particle.getMomentum().z, particle.getMass())
+                if abs(particle.getPDG()) == 11:
+                    pt_all_electrons.Fill(particle_fourvector.pt())
+                    if (particle.getGeneratorStatus() >= 1): # 1 or more = primary, 0 = secondary
+                        pt_primary_electrons.Fill(particle_fourvector.pt())
+
             # where are the particles leading to hits in the DC coming from and what energy do they have per bx?
-            particle_hittingDC_origin_rz_pt_per_bx = ROOT.TH2F(f"particle_hittingDC_origin_rz_pt_bx_{bx_seen}", "particle_hittingDC_origin_rz_pt_bx_{bx_seen}", 100, 0, 2000, 100, 0, 2000)
+            particle_hittingDC_origin_rz_pt_per_bx = ROOT.TH2F(f"particle_hittingDC_origin_rz_pt_bx_{bx_seen}", "particle_hittingDC_origin_rz_pt_bx_{bx_seen}", 100, 0, 2500, 100, 0, 2000)
             particle_hittingDC_origin_rz_pt_per_bx.SetTitle(f"Origin of bkg particles hitting the DCH ({number_of_iteration_on_bx_batches * number_of_bx} BXs)")
             particle_hittingDC_origin_rz_pt_per_bx.GetXaxis().SetTitle("z [mm]")
             particle_hittingDC_origin_rz_pt_per_bx.GetYaxis().SetTitle("r [mm]")
@@ -222,6 +263,9 @@ for bx_batch_index in range(0, number_of_iteration_on_bx_batches): # first loop 
                 superlayer = decoder.get(cellID, "superlayer")
                 nphi = decoder.get(cellID, "nphi")
                 particle = dc_hit.getParticle()
+                # are the hit from the DC coming from a primary particle or not? # w.r.t. to isPrimary_of_particles_hitting_dch, this one is filled once per hit
+                isPrimary_of_particle_attached_to_hits.Fill(int(particle.getGeneratorStatus() and not dc_hit.isProducedBySecondary()))
+                # define a unique layer index based on super layer and layer
                 if layer >= n_layers_per_superlayer or superlayer >= n_superlayers:
                     print("Error: layer or super layer index out of range")
                     print(f"Layer: {layer} while max layer is {n_layers_per_superlayer - 1}. Superlayer: {superlayer} while max superlayer is {n_superlayers - 1}.")
@@ -240,8 +284,8 @@ for bx_batch_index in range(0, number_of_iteration_on_bx_batches): # first loop 
                     if(dict_cellID_nHits[cellID_unique_identifier] == 1):
                         number_of_cell_with_multiple_hits += 1
                     dict_cellID_nHits[cellID_unique_identifier] += 1
-                # deal with the number of cell fired per particle #FIXME check that it does the proper thing
-                particle_object_id = str(particle.getObjectID())
+                # deal with the number of cell fired per particle
+                particle_object_id = particle.getObjectID().index
                 if particle_object_id not in dict_particle_n_fired_cell.keys(): # the particle was not seen yet
                     dict_particle_n_fired_cell[particle_object_id] = 1
                     dict_particle_fired_cell_id[particle_object_id] = [cellID_unique_identifier]
@@ -257,7 +301,7 @@ for bx_batch_index in range(0, number_of_iteration_on_bx_batches): # first loop 
                 if not dc_hit.getPathLength() == 0:
                     dedx_of_dch_hits.Fill(1e+6 * dc_hit.getEDep()/dc_hit.getPathLength())
                 # fill the particle related TH1's (only once, a particle can lead to multiple DC hits)
-                if particle.getObjectID() not in seen_particle_ids:
+                if particle.getObjectID().index not in seen_particle_ids:
                     particle_fourvector = ROOT.Math.LorentzVector('ROOT::Math::PxPyPzM4D<double>')(particle.getMomentum().x, particle.getMomentum().y, particle.getMomentum().z, particle.getMass())
                     total_number_of_particles_reaching_dch_per_bx_batch += 1
                     # where are the particles leading to hits in the DC coming from?
@@ -273,15 +317,17 @@ for bx_batch_index in range(0, number_of_iteration_on_bx_batches): # first loop 
                     pdgid_of_particles_hitting_dch.Fill(particle.getPDG())
                     # all particles leaving signals in DCH are electrons or positrons, is their parent a photon?
                     has_photon_parent = 0
+                    #print(len(particle.getParents())) usually 0 or 1 for ICP
                     for parent in particle.getParents():
                         if parent.getPDG() == 22:
                             has_photon_parent = 1
                             energy_of_particles_hitting_dch_with_photon_parent.Fill(particle_fourvector.E())
                     hasPhotonParent_of_particles_hitting_dch.Fill(has_photon_parent)
+                    hasPhotonParentOrIsPhoton_of_particles_hitting_dch.Fill(int(has_photon_parent or particle.getPDG() == 22))
 
                     # are the particles hitting dc primaries or secondaries?
                     isPrimary_of_particles_hitting_dch.Fill(particle.getGeneratorStatus())
-                    seen_particle_ids.append(particle.getObjectID()) # must be at the end
+                    seen_particle_ids.append(particle.getObjectID().index) # must be at the end
 
                 # what is the vertex radius of the oldest parent (original primary particle)?
                 # put this one outside of the seen_particle_ids condition to "weight" with the number of hit the particle lead to
@@ -342,19 +388,29 @@ for bx_batch_index in range(0, number_of_iteration_on_bx_batches): # first loop 
 #print(f"Percentage of hit coming from primary particles with vertex radius after beampipe: {total_number_of_hit_comingFromPrimaryAfterBeamPipe / float(total_number_of_hit)}")
 # end of loop on BX batches
 draw_histo(particle_hittingDC_origin_rz, "colz")
+draw_histo(particle_hittingDC_origin_rz, "colzlogz")
 draw_histo(dedx_of_dch_hits)
 draw_histo(energy_of_particles_hitting_dch, logY = True)
 draw_histo(energy_of_particles_hitting_dch_with_photon_parent, logY = True)
 pdgid_of_particles_hitting_dch.Scale(1/pdgid_of_particles_hitting_dch.Integral())
 draw_histo(pdgid_of_particles_hitting_dch)
 draw_histo(hasPhotonParent_of_particles_hitting_dch)
+draw_histo(hasPhotonParentOrIsPhoton_of_particles_hitting_dch)
 isPrimary_of_particles_hitting_dch.Scale(1/isPrimary_of_particles_hitting_dch.Integral())
 draw_histo(isPrimary_of_particles_hitting_dch)
+isPrimary_of_particle_attached_to_hits.Scale(1/isPrimary_of_particle_attached_to_hits.Integral())
+draw_histo(isPrimary_of_particle_attached_to_hits)
 draw_histo(oldestParentVertexRadius_of_particles_hitting_dch)
 draw_histo(n_cell_fired_of_particles_hitting_dch)
 draw_histo(n_cell_fired_of_particles_hitting_dch_log, logY = True)
 draw_histo(pt_of_particles_hitting_dch_below_10cm)
 draw_histo(occupancy_per_layer_profile)
+# MCParticle plots
+draw_histo(pt_all_electrons)
+draw_histo(pt_all_electrons, logY = True)
+draw_histo(pt_primary_electrons)
+draw_histo(pt_primary_electrons, logY = True)
+print(f"Number of electrons potentially reaching (includes secondaries with larger radius --> under estimated) DCH for {number_of_iteration_on_bx_batches * number_of_bx} BX's: ", pt_all_electrons.Integral(pt_all_electrons.FindBin(0.35), pt_all_electrons.GetNbinsX()))
 
 print("Overall occupancies for all iterations: ", str(overall_occupancies))
 with open(os.path.join(plot_folder, "overall_occupancies.txt"), "w") as myfile:
@@ -363,10 +419,10 @@ with open(os.path.join(plot_folder, "overall_occupancies.txt"), "w") as myfile:
 print(os.path.join(plot_folder, "overall_occupancies.txt"), " written.")
 
 # cross check the number of cell
-for layer in dict_layer_phiSet.keys():
-    print(f"Number of phi cells in layer {layer}")
-    print(len(dict_layer_phiSet[layer]))
-    print(dict_layer_phiSet[layer])
+#for layer in dict_layer_phiSet.keys():
+#    print(f"Number of phi cells in layer {layer}")
+#    print(len(dict_layer_phiSet[layer]))
+#    print(dict_layer_phiSet[layer])
 
 # draw averaged quantities
 overall_occupancies_th1 = ROOT.TH1F(f"overall_occupancies_th1", f"overall_occupancies_th1", 50, 0, 5)
