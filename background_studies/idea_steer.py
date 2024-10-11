@@ -449,7 +449,7 @@ SIM.outputConfig.userOutputPlugin = None
 SIM.part.enableDetailedHitsAndParticleInfo = False
 
 ##  Keep all created particles 
-SIM.part.keepAllParticles = False
+SIM.part.keepAllParticles = True
 
 ## Minimal distance between particle vertex and endpoint of parent after
 ##     which the vertexIsNotEndpointOfParent flag is set
