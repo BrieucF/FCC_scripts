@@ -1,5 +1,5 @@
 export EOS_MGM_URL=root://eospublic.cern.ch
-username=mgarciam
+username=$1
 firstletter=${username:0:1}
 userid="$(id -u $username)"
 usergid="$(id -g $username)"
