@@ -36,7 +36,8 @@ queue filename matching files {0}
 executable_header = """#!/bin/bash
 source /cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh
 #source /cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh -r 2024-06-06 # closest stable stack is 2024-04-12 or the one just after (I think the 2024-04-12 won't be able to run the DC)
-cd /afs/cern.ch/user/b/brfranco/work/public/background_studies/k4geo/
+#cd /afs/cern.ch/user/b/brfranco/work/public/background_studies/k4geo/
+cd /afs/cern.ch/user/b/brfranco/work/public/k4geo/
 k4_local_repo
 cd -
 """
