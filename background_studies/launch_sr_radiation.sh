@@ -1,3 +1,4 @@
+#!/bin/bash
 #input_dir=/eos/experiment/fcc/users/b/brfranco/background_files/sr_photons_kevin/ #v4_usedForMDITalk_October24_correct/
 nightlies
 cd /afs/cern.ch/user/b/brfranco/work/public/background_studies/synchrotron_radiation_v1/k4geo/
