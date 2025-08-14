@@ -3,9 +3,10 @@ import os, sys, stat
 #input_file_path = "/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_June2024_v23/"
 input_file_path = "/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_June2024_v23_vtx000/"
 reco_storage_path_global = input_file_path
-ddsim_steering_file_path = "/afs/cern.ch/user/b/brfranco/work/public/background_studies/low_energy_xrays/CLDConfig/CLDConfig/"
-#ddsim_steering_file = os.path.join(ddsim_steering_file_path, "cld_steer_lowEnergyXRays.py")
-ddsim_steering_file = os.path.join(ddsim_steering_file_path, "cld_steer_lowEnergyXRays_noAuger.py")
+#ddsim_steering_file_path = "/afs/cern.ch/user/b/brfranco/work/public/background_studies/low_energy_xrays/CLDConfig/CLDConfig/"
+ddsim_steering_file_path = "/afs/cern.ch/user/b/brfranco/work/public/background_studies/FCC_scripts/background_studies/cld_steering_files/"
+ddsim_steering_file = os.path.join(ddsim_steering_file_path, "cld_steer_lowEnergyXRays.py")
+#ddsim_steering_file = os.path.join(ddsim_steering_file_path, "cld_steer_lowEnergyXRays_noAuger.py")
 #ddsim_steering_file = os.path.join(ddsim_steering_file_path, "cld_steer.py")
 #campaign_name = "CLD_SIM_low_energy_x_rays_EMZ_withAuger_deexcitationIgnoreCut_True"
 campaign_name = "CLD_SIM_low_energy_x_rays_EMZ_witouthAuger"
